@@ -3,6 +3,8 @@ name: CD — Deploy to Test Environment
 on:
   push:
     branches: [main]
+workflow_dispatch:
+
 
 jobs:
   deploy:
