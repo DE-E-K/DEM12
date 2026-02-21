@@ -92,17 +92,30 @@ jobs:
       - name: Copy env template
         run: cp .env.example .env
 
-      - name: Start stack (postgres + airflow)
+      # Start postgres first (airflow-init depends on it)
+      - name: Start PostgreSQL
         run: |
-          docker compose up -d postgres airflow-init
-          docker compose wait airflow-init
+          docker compose up -d postgres
+          echo "Waiting for postgres to be healthy..."
+          timeout 60 bash -c \
+            'until docker inspect platform_postgres \
+              --format "{{.State.Health.Status}}" 2>/dev/null | grep -q healthy; \
+            do sleep 3; done'
 
+      # Run airflow-init in the FOREGROUND so we wait for it to finish
+      - name: Initialise Airflow database
+        run: docker compose run --rm airflow-init
+
+      # Now run the DAG list check using the scheduler image (no webserver needed)
       - name: Test DAG import
         run: |
-          docker compose run --rm airflow-webserver \
+          docker compose run --rm airflow-scheduler \
             airflow dags list 2>&1 | tee /tmp/dag-list.txt
-          grep -q "sales_pipeline_dag" /tmp/dag-list.txt
+          grep -q "sales_pipeline_dag" /tmp/dag-list.txt \
+            && echo "DAG found." \
+            || { echo "sales_pipeline_dag not found in dag list"; exit 1; }
 
       - name: Tear down
         if: always()
         run: docker compose down -v
+

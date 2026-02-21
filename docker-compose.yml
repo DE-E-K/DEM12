@@ -86,7 +86,7 @@ services:
       - ./minio-init:/init
     restart: "no"
 
-  # ── Airflow Init (DB migrate + admin user) ─────────────────
+  # ── Airflow Init (DB init + admin user) ───────────────────
   airflow-init:
     <<: *airflow-common
     container_name: platform_airflow_init
@@ -94,7 +94,7 @@ services:
     command:
       - -c
       - |
-        airflow db migrate
+        airflow db init
         airflow users create \
           --username ${AIRFLOW_ADMIN_USERNAME} \
           --firstname Admin \
