@@ -1,5 +1,3 @@
-version: "3.9"
-
 x-airflow-common: &airflow-common
   image: apache/airflow:2.9.1
   env_file: .env
@@ -10,6 +8,11 @@ x-airflow-common: &airflow-common
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: ${AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION}
     AIRFLOW__CORE__LOAD_EXAMPLES: ${AIRFLOW__CORE__LOAD_EXAMPLES}
     AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW__WEBSERVER__SECRET_KEY}
+    # Allow DAGs to import from include/ (mounted at /opt/airflow/include)
+    PYTHONPATH: /opt/airflow
+    # Install extra Python packages into the Airflow image at startup
+    # (official method for apache/airflow base image without a custom Dockerfile)
+    _PIP_ADDITIONAL_REQUIREMENTS: "boto3>=1.34 pandas>=2.2 pyarrow>=15.0 psycopg2-binary>=2.9 pydantic>=2.6 pydantic-settings>=2.2 apache-airflow-providers-amazon>=8.19"
     # Pass MinIO / Postgres settings so DAGs can read from include/config.py
     POSTGRES_HOST: ${POSTGRES_HOST}
     POSTGRES_PORT: ${POSTGRES_PORT}
@@ -94,6 +97,7 @@ services:
     command:
       - -c
       - |
+        set -e
         airflow db init
         airflow users create \
           --username ${AIRFLOW_ADMIN_USERNAME} \

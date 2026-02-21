@@ -101,13 +101,14 @@ def upload_to_minio(df: pd.DataFrame) -> str:
     csv_buffer = io.BytesIO()
     df.to_csv(csv_buffer, index=False)
     csv_buffer.seek(0)
+    csv_size = len(csv_buffer.getvalue())   # capture size BEFORE upload consumes the stream
 
     client.upload_fileobj(csv_buffer, settings.minio_raw_bucket, object_key)
     logger.info(
-        "✅  Uploaded '%s' to MinIO bucket '%s' (%d bytes).",
+        "Uploaded '%s' to MinIO bucket '%s' (%d bytes).",
         object_key,
         settings.minio_raw_bucket,
-        csv_buffer.tell(),
+        csv_size,
     )
     return object_key
 

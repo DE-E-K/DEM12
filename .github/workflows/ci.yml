@@ -92,24 +92,39 @@ jobs:
       - name: Copy env template
         run: cp .env.example .env
 
-      # Start postgres first (airflow-init depends on it)
+      # ── Start postgres and wait for the health check to pass ──
       - name: Start PostgreSQL
         run: |
           docker compose up -d postgres
-          echo "Waiting for postgres to be healthy..."
+          echo "Waiting for postgres to be healthy (pg_isready)..."
           timeout 60 bash -c \
             'until docker inspect platform_postgres \
               --format "{{.State.Health.Status}}" 2>/dev/null | grep -q healthy; \
             do sleep 3; done'
+          echo "postgres is healthy."
 
-      # Run airflow-init in the FOREGROUND so we wait for it to finish
+      # ── pg_isready passes BEFORE init-scripts finish.
+      #    Poll until the 'airflow' DB exists, which proves 01_schema.sql ran. ──
+      - name: Wait for PostgreSQL init-scripts to finish
+        run: |
+          echo "Waiting for init-scripts to create the 'airflow' database..."
+          timeout 90 bash -c \
+            'until docker exec platform_postgres \
+              psql -U sales_user -d sales -tAc \
+              "SELECT 1 FROM pg_database WHERE datname='"'"'airflow'"'"'" \
+              2>/dev/null | grep -q 1; \
+            do sleep 3; done'
+          echo "Init-scripts complete — 'airflow' database confirmed."
+
+      # ── Run airflow-init in FOREGROUND (--no-deps: postgres is already up).
+      #    set -e inside the script means any failure = non-zero exit = CI fails. ──
       - name: Initialise Airflow database
-        run: docker compose run --rm airflow-init
+        run: docker compose run --rm --no-deps airflow-init
 
-      # Now run the DAG list check using the scheduler image (no webserver needed)
+      # ── Run the DAG list check without starting the full webserver ──
       - name: Test DAG import
         run: |
-          docker compose run --rm airflow-scheduler \
+          docker compose run --rm --no-deps airflow-scheduler \
             airflow dags list 2>&1 | tee /tmp/dag-list.txt
           grep -q "sales_pipeline_dag" /tmp/dag-list.txt \
             && echo "DAG found." \
@@ -118,4 +133,5 @@ jobs:
       - name: Tear down
         if: always()
         run: docker compose down -v
+
 
