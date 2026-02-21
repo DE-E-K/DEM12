@@ -1,0 +1,117 @@
+name: Data Flow Validation
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  validate-data-flow:
+    name: End-to-end MinIO → Airflow → PostgreSQL validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create .env
+        run: cp .env.example .env
+
+      - name: Start full platform stack
+        run: |
+          docker compose up -d \
+            postgres minio minio-init \
+            airflow-init airflow-webserver airflow-scheduler
+          echo "⏳ Waiting for services to become healthy..."
+          sleep 60
+
+      - name: Build data-generator image
+        run: docker compose build data-generator
+
+      # ── Step 1: Ingest ─────────────────────────────────────
+      - name: Generate seed data → upload to MinIO
+        run: |
+          docker compose --profile tools run --rm \
+            -e GENERATOR_NUM_ROWS=50 \
+            data-generator
+
+      - name: Verify file in MinIO (raw-data bucket)
+        run: |
+          docker compose run --rm minio-init sh -c "
+            mc alias set local http://minio:9000 minioadmin minioadmin123 &&
+            mc ls local/raw-data/ | grep -E 'sales_.*\.csv' || { echo 'FAIL: No CSV in raw-data'; exit 1; }
+          "
+
+      # ── Step 2: Trigger Airflow DAG ────────────────────────
+      - name: Trigger sales_pipeline_dag via Airflow REST API
+        run: |
+          curl -s -X POST \
+            http://localhost:8080/api/v1/dags/sales_pipeline_dag/dagRuns \
+            -H "Content-Type: application/json" \
+            -u admin:change_me_admin \
+            -d '{"conf": {}}' | tee /tmp/dag_trigger.json
+          cat /tmp/dag_trigger.json | python3 -c "
+          import sys, json
+          d = json.load(sys.stdin)
+          print('DAG run ID:', d.get('dag_run_id'))
+          assert d.get('state') in ['queued', 'running', 'success'], f'Unexpected state: {d}'
+          "
+
+      # ── Step 3: Poll until DAG run finishes ────────────────
+      - name: Wait for DAG run to complete (max 8 min)
+        run: |
+          python3 - <<'PYEOF'
+          import time, requests, sys
+          BASE = "http://localhost:8080/api/v1"
+          AUTH = ("admin", "change_me_admin")
+          DAG_ID = "sales_pipeline_dag"
+
+          for _ in range(48):  # 48 × 10 s = 8 min
+              resp = requests.get(
+                  f"{BASE}/dags/{DAG_ID}/dagRuns",
+                  auth=AUTH,
+                  params={"order_by": "-execution_date", "limit": 1},
+              )
+              runs = resp.json().get("dag_runs", [])
+              if runs:
+                  state = runs[0]["state"]
+                  print(f"  DAG state: {state}", flush=True)
+                  if state == "success":
+                      print("✅ DAG completed successfully.")
+                      sys.exit(0)
+                  elif state in ("failed", "upstream_failed"):
+                      print(f"❌ DAG failed with state: {state}")
+                      sys.exit(1)
+              time.sleep(10)
+          print("❌ Timed out waiting for DAG.")
+          sys.exit(1)
+          PYEOF
+
+      # ── Step 4: Validate PostgreSQL ─────────────────────────
+      - name: Set up Python for validation tests
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install test dependencies
+        run: pip install pytest psycopg2-binary boto3 pydantic pydantic-settings
+
+      - name: Run data-flow validation tests
+        run: pytest tests/test_data_flow.py -v --tb=short
+        env:
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: "5432"
+          POSTGRES_DB: sales
+          POSTGRES_USER: sales_user
+          POSTGRES_PASSWORD: change_me_postgres
+          MINIO_ROOT_USER: minioadmin
+          MINIO_ROOT_PASSWORD: change_me_minio
+          MINIO_ENDPOINT: http://localhost:9000
+          MINIO_RAW_BUCKET: raw-data
+          MINIO_PROCESSED_BUCKET: processed-data
+          AIRFLOW_ADMIN_PASSWORD: change_me_admin
+          AIRFLOW_ADMIN_EMAIL: admin@example.com
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v

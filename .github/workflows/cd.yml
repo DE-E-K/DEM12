@@ -1,0 +1,80 @@
+name: CD — Deploy to Test Environment
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    name: Deploy stack on test runner
+    runs-on: ubuntu-latest  # acts as the test environment
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── Build and push images to GHCR ─────────────────────
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & push data-generator image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./data-generator
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/data-generator:latest
+
+      # ── Stand up the full stack on the runner ─────────────
+      - name: Create .env from GitHub Secrets
+        run: |
+          cat > .env <<EOF
+          POSTGRES_HOST=postgres
+          POSTGRES_PORT=5432
+          POSTGRES_DB=sales
+          POSTGRES_USER=sales_user
+          POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+          AIRFLOW__CORE__EXECUTOR=LocalExecutor
+          AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow_user:${{ secrets.AIRFLOW_DB_PASSWORD }}@postgres:5432/airflow
+          AIRFLOW__CORE__FERNET_KEY=${{ secrets.AIRFLOW_FERNET_KEY }}
+          AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=false
+          AIRFLOW__CORE__LOAD_EXAMPLES=false
+          AIRFLOW__WEBSERVER__SECRET_KEY=${{ secrets.AIRFLOW_SECRET_KEY }}
+          AIRFLOW_ADMIN_USERNAME=admin
+          AIRFLOW_ADMIN_PASSWORD=${{ secrets.AIRFLOW_ADMIN_PASSWORD }}
+          AIRFLOW_ADMIN_EMAIL=admin@example.com
+          MINIO_ROOT_USER=minioadmin
+          MINIO_ROOT_PASSWORD=${{ secrets.MINIO_PASSWORD }}
+          MINIO_ENDPOINT=http://minio:9000
+          MINIO_RAW_BUCKET=raw-data
+          MINIO_PROCESSED_BUCKET=processed-data
+          MB_DB_TYPE=postgres
+          MB_DB_DBNAME=metabase
+          MB_DB_PORT=5432
+          MB_DB_USER=metabase_user
+          MB_DB_PASS=${{ secrets.METABASE_DB_PASSWORD }}
+          MB_DB_HOST=postgres
+          GENERATOR_NUM_ROWS=100
+          GENERATOR_SEED=42
+          EOF
+
+      - name: Start all services
+        run: |
+          docker compose up -d --wait \
+            postgres minio minio-init \
+            airflow-init airflow-webserver airflow-scheduler \
+            metabase
+        timeout-minutes: 5
+
+      - name: Health check — all containers healthy
+        run: |
+          for service in platform_postgres platform_minio platform_airflow_webserver platform_metabase; do
+            STATUS=$(docker inspect --format='{{.State.Health.Status}}' $service 2>/dev/null || echo "unknown")
+            echo "$service: $STATUS"
+            [ "$STATUS" = "healthy" ] || { echo "FAIL: $service not healthy"; exit 1; }
+          done
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v
