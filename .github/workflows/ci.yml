@@ -37,7 +37,7 @@ jobs:
         run: docker compose build --no-cache data-generator
 
       - name: Save data-generator image
-        run: docker save platform_data_generator -o /tmp/data-generator.tar
+        run: docker save data-platform/data-generator:latest -o /tmp/data-generator.tar
 
       - name: Cache image artifact
         uses: actions/upload-artifact@v4

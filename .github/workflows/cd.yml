@@ -3,8 +3,7 @@ name: CD — Deploy to Test Environment
 on:
   push:
     branches: [main]
-workflow_dispatch:
-
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -26,7 +25,8 @@ jobs:
         with:
           context: ./data-generator
           push: true
-          tags: ghcr.io/${{ github.repository_owner }}/data-generator:latest
+          # Tag matches the `image:` field in docker-compose.yml so `docker compose pull` works
+          tags: ghcr.io/${{ github.repository_owner }}/data-platform-data-generator:latest
 
       # ── Stand up the full stack on the runner ─────────────
       - name: Create .env from GitHub Secrets

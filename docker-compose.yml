@@ -167,6 +167,7 @@ services:
     build:
       context: ./data-generator
       dockerfile: Dockerfile
+    image: data-platform/data-generator:latest # stable name for CI docker save/push
     container_name: platform_data_generator
     env_file: .env
     environment:
