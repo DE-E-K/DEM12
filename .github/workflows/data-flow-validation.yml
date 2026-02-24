@@ -3,6 +3,8 @@ name: Data Flow Validation
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 
@@ -63,28 +65,49 @@ jobs:
       - name: Wait for DAG run to complete (max 8 min)
         run: |
           python3 - <<'PYEOF'
-          import time, requests, sys
+          import base64
+          import json
+          import sys
+          import time
+          from urllib.parse import urlencode
+          from urllib.request import Request, urlopen
+
           BASE = "http://localhost:8080/api/v1"
           AUTH = ("admin", "change_me_admin")
           DAG_ID = "sales_pipeline_dag"
 
+          token = base64.b64encode(f"{AUTH[0]}:{AUTH[1]}".encode()).decode()
+
+          def get_latest_run_state() -> str | None:
+            params = urlencode({"order_by": "-execution_date", "limit": 1})
+            req = Request(
+              f"{BASE}/dags/{DAG_ID}/dagRuns?{params}",
+              headers={
+                "Authorization": f"Basic {token}",
+                "Accept": "application/json",
+              },
+            )
+            with urlopen(req, timeout=15) as resp:
+              payload = json.loads(resp.read().decode())
+            runs = payload.get("dag_runs", [])
+            return runs[0]["state"] if runs else None
+
           for _ in range(48):  # 48 × 10 s = 8 min
-              resp = requests.get(
-                  f"{BASE}/dags/{DAG_ID}/dagRuns",
-                  auth=AUTH,
-                  params={"order_by": "-execution_date", "limit": 1},
-              )
-              runs = resp.json().get("dag_runs", [])
-              if runs:
-                  state = runs[0]["state"]
-                  print(f"  DAG state: {state}", flush=True)
-                  if state == "success":
-                      print("DAG completed successfully.")
-                      sys.exit(0)
-                  elif state in ("failed", "upstream_failed"):
-                      print(f"DAG failed with state: {state}")
-                      sys.exit(1)
-              time.sleep(10)
+            try:
+              state = get_latest_run_state()
+            except Exception as exc:
+              print(f"  Polling error: {exc}", flush=True)
+              state = None
+
+            if state:
+              print(f"  DAG state: {state}", flush=True)
+              if state == "success":
+                print("DAG completed successfully.")
+                sys.exit(0)
+              elif state in ("failed", "upstream_failed"):
+                print(f"DAG failed with state: {state}")
+                sys.exit(1)
+            time.sleep(10)
           print("Timed out waiting for DAG.")
           sys.exit(1)
           PYEOF

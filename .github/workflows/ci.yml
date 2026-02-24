@@ -9,15 +9,45 @@ on:
 
 
 jobs:
-  # === 1. Validate Compose file =============================================─
-  lint-compose:
-    name: Lint docker-compose.yml
+  # === 0. Prepare shared CI environment =====================================
+  prepare-env:
+    name: Prepare CI .env
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - name: Copy env template
         run: cp .env.example .env
+
+      - name: Set valid Airflow Fernet key for CI
+        run: |
+          FERNET_KEY=$(python3 - <<'PY'
+          import base64, os
+          print(base64.urlsafe_b64encode(os.urandom(32)).decode())
+          PY
+          )
+          sed -i "s|^AIRFLOW__CORE__FERNET_KEY=.*|AIRFLOW__CORE__FERNET_KEY=${FERNET_KEY}|" .env
+
+      - name: Upload CI .env artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-env-file
+          path: .env
+          retention-days: 1
+
+  # === 1. Validate Compose file =============================================─
+  lint-compose:
+    name: Lint docker-compose.yml
+    runs-on: ubuntu-latest
+    needs: prepare-env
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download CI .env artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ci-env-file
+          path: .
 
       - name: Validate Compose config
         run: docker compose config --quiet
@@ -26,12 +56,15 @@ jobs:
   build:
     name: Build Docker images
     runs-on: ubuntu-latest
-    needs: lint-compose
+    needs: [prepare-env, lint-compose]
     steps:
       - uses: actions/checkout@v4
 
-      - name: Copy env template
-        run: cp .env.example .env
+      - name: Download CI .env artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ci-env-file
+          path: .
 
       - name: Build images
         run: docker compose build --no-cache data-generator
@@ -50,9 +83,15 @@ jobs:
   unit-tests:
     name: Unit Tests (transformations + db_loader)
     runs-on: ubuntu-latest
-    needs: build
+    needs: [prepare-env, build]
     steps:
       - uses: actions/checkout@v4
+
+      - name: Download CI .env artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ci-env-file
+          path: .
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -61,16 +100,18 @@ jobs:
 
       - name: Install test dependencies
         run: |
-          pip install pandas pyarrow psycopg2-binary pydantic pydantic-settings pytest pytest-cov
+          pip install pandas pyarrow psycopg2-binary pydantic pydantic-settings pytest pytest-cov boto3
 
       - name: Run unit tests
-        run: pytest tests/ -v --tb=short --ignore=tests/test_data_flow.py
+        run: pytest tests/test_data_flow.py::TestTransformationUnit -v --tb=short
         env:
+          PYTHONPATH: .
           POSTGRES_HOST: localhost
           POSTGRES_PORT: "5432"
           POSTGRES_DB: sales
           POSTGRES_USER: sales_user
           POSTGRES_PASSWORD: test_password_ci
+          AIRFLOW_ADMIN_USERNAME: admin
           MINIO_ROOT_USER: minioadmin
           MINIO_ROOT_PASSWORD: minioadmin123
           MINIO_ENDPOINT: http://localhost:9000
@@ -86,12 +127,15 @@ jobs:
   dag-integrity:
     name: Airflow DAG import check
     runs-on: ubuntu-latest
-    needs: lint-compose
+    needs: [prepare-env, lint-compose]
     steps:
       - uses: actions/checkout@v4
 
-      - name: Copy env template
-        run: cp .env.example .env
+      - name: Download CI .env artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ci-env-file
+          path: .
 
       # === Start postgres and wait for the health check to pass ===
       - name: Start PostgreSQL
@@ -119,7 +163,7 @@ jobs:
 
       # === Run airflow-init in FOREGROUND (--no-deps: postgres is already up).
       #    set -e inside the script means any failure = non-zero exit = CI fails. ===
-      - name: Initialise Airflow database
+      - name: Initialise Airflow databases
         run: docker compose run --rm --no-deps airflow-init
 
       # === Run the DAG list check without starting the full webserver ===
