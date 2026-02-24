@@ -1,6 +1,6 @@
 """
 include/config.py
-─────────────────
+=================
 Single source of truth for all platform configuration.
 
 Usage (anywhere in the project):
@@ -31,30 +31,31 @@ class Settings(BaseSettings):
         extra="ignore",          # ignore unknown env vars
     )
 
-    # ── PostgreSQL ────────────────────────────────────────────────
+    # === PostgreSQL ============================================================
     postgres_host: str = Field(..., description="PostgreSQL hostname")
     postgres_port: int = Field(5432, ge=1, le=65535)
     postgres_db: str = Field(..., description="Sales database name")
     postgres_user: str = Field(..., description="PostgreSQL user")
     postgres_password: str = Field(..., min_length=8, description="PostgreSQL password")
 
-    # ── Airflow ───────────────────────────────────────────────────
+    # === Airflow =============================================================
     airflow_admin_username: str = Field("admin")
     airflow_admin_password: str = Field(..., min_length=8)
     airflow_admin_email: str = Field(...)
 
-    # ── MinIO ─────────────────────────────────────────────────────
+    # === MinIO ===============================================================
     minio_root_user: str = Field(..., min_length=3)
     minio_root_password: str = Field(..., min_length=8)
     minio_endpoint: str = Field(..., description="e.g. http://minio:9000")
     minio_raw_bucket: str = Field("raw-data")
     minio_processed_bucket: str = Field("processed-data")
 
-    # ── Data Generator ────────────────────────────────────────────
-    generator_num_rows: int = Field(500, ge=1, le=1_000_000)
+    # === Data Generator ======================================================
+    generator_min_rows: int = Field(200, ge=1, le=1_000_000)
+    generator_max_rows: int = Field(1500, ge=1, le=1_000_000)
     generator_seed: int = Field(42)
 
-    # ── Derived helpers ───────────────────────────────────────────
+    # === Derived helpers =====================================================
     @property
     def postgres_dsn(self) -> str:
         """Standard psycopg2 DSN string."""
@@ -74,7 +75,7 @@ class Settings(BaseSettings):
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
         )
 
-    # ── Validators ────────────────────────────────────────────────
+    # === Validators ==========================================================
     @field_validator("minio_endpoint")
     @classmethod
     def validate_minio_endpoint(cls, v: str) -> str:
@@ -105,7 +106,7 @@ class Settings(BaseSettings):
         if bad:
             import warnings
             warnings.warn(
-                f"⚠️  Still using placeholder passwords for: {bad}. "
+                f"WARNING: Still using placeholder passwords for: {bad}. "
                 "Update your .env before running in production.",
                 stacklevel=2,
             )

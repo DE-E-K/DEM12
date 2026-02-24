@@ -23,17 +23,18 @@ jobs:
           docker compose up -d \
             postgres minio minio-init \
             airflow-init airflow-webserver airflow-scheduler
-          echo "⏳ Waiting for services to become healthy..."
+          echo "Waiting for services to become healthy..."
           sleep 60
 
       - name: Build data-generator image
         run: docker compose build data-generator
 
-      # ── Step 1: Ingest ─────────────────────────────────────
+      # === Step 1: Ingest ===================================================
       - name: Generate seed data → upload to MinIO
         run: |
           docker compose --profile tools run --rm \
-            -e GENERATOR_NUM_ROWS=50 \
+            -e GENERATOR_MIN_ROWS=50 \
+            -e GENERATOR_MAX_ROWS=50 \
             data-generator
 
       - name: Verify file in MinIO (raw-data bucket)
@@ -43,7 +44,7 @@ jobs:
             mc ls local/raw-data/ | grep -E 'sales_.*\.csv' || { echo 'FAIL: No CSV in raw-data'; exit 1; }
           "
 
-      # ── Step 2: Trigger Airflow DAG ────────────────────────
+      # === Step 2: Trigger Airflow DAG ====================================
       - name: Trigger sales_pipeline_dag via Airflow REST API
         run: |
           curl -s -X POST \
@@ -58,7 +59,7 @@ jobs:
           assert d.get('state') in ['queued', 'running', 'success'], f'Unexpected state: {d}'
           "
 
-      # ── Step 3: Poll until DAG run finishes ────────────────
+      # === Step 3: Poll until DAG run finishes ========================
       - name: Wait for DAG run to complete (max 8 min)
         run: |
           python3 - <<'PYEOF'
@@ -78,17 +79,17 @@ jobs:
                   state = runs[0]["state"]
                   print(f"  DAG state: {state}", flush=True)
                   if state == "success":
-                      print("✅ DAG completed successfully.")
+                      print("DAG completed successfully.")
                       sys.exit(0)
                   elif state in ("failed", "upstream_failed"):
-                      print(f"❌ DAG failed with state: {state}")
+                      print(f"DAG failed with state: {state}")
                       sys.exit(1)
               time.sleep(10)
-          print("❌ Timed out waiting for DAG.")
+          print("Timed out waiting for DAG.")
           sys.exit(1)
           PYEOF
 
-      # ── Step 4: Validate PostgreSQL ─────────────────────────
+      # === Step 4: Validate PostgreSQL ===================================
       - name: Set up Python for validation tests
         uses: actions/setup-python@v5
         with:

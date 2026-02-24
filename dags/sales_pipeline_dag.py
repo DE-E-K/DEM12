@@ -1,6 +1,6 @@
 """
 dags/sales_pipeline_dag.py
-──────────────────────────
+==========================
 Airflow DAG: MinIO → Validate → Transform → PostgreSQL → Archive
 
 Schedule: every 15 minutes
@@ -30,7 +30,7 @@ from include.transformations import build_product_aggregations, clean_and_transf
 
 logger = logging.getLogger(__name__)
 
-# ── DAG default args ───────────────────────────────────────────
+# === DAG default args =============================================
 DEFAULT_ARGS = {
     "owner": "data-platform",
     "depends_on_past": False,
@@ -41,7 +41,7 @@ DEFAULT_ARGS = {
     "execution_timeout": timedelta(minutes=30),
 }
 
-# ── Helpers ────────────────────────────────────────────────────
+# === Helpers =============================================================
 
 def _s3_client():
     return boto3.client(
@@ -61,7 +61,38 @@ def _list_pending_files() -> list[str]:
     return [obj["Key"] for obj in resp.get("Contents", [])]
 
 
-# ── Task callables ─────────────────────────────────────────────
+# === Task callables =============================================
+def run_data_generator(**context) -> None:
+    """Generate and upload data using the existing script to prevent download failures."""
+    import sys
+    
+    # We must ensure the generator config logic works from within Airflow.
+    # The generation script uses `include.config` in this context,
+    # or the local `config.py` in the data-generator directory.
+    # To keep it completely robust, we will use the data-generator's generate_data.py
+    # but we must adjust PYTHONPATH or invoke it as a subprocess if we want pure isolation.
+    # The simplest Airflow-native way is to call the function directly.
+    import random
+    
+    # We need to temporarily add data-generator to sys.path so it can find its specific config
+    # if it's not already in PYTHONPATH
+    gen_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data-generator")
+    if gen_path not in sys.path:
+        sys.path.insert(0, gen_path)
+    
+    try:
+        from generate_data import generate_dataframe, upload_to_minio
+        from config import settings as gen_settings
+        
+        num_rows = random.randint(gen_settings.generator_min_rows, gen_settings.generator_max_rows)
+        logger.info("DAG generating data (rows=%d, seed=%d)", num_rows, gen_settings.generator_seed)
+        df = generate_dataframe(num_rows)
+        key = upload_to_minio(df)
+        logger.info("DAG generated minio object: %s", key)
+    finally:
+        if gen_path in sys.path:
+            sys.path.remove(gen_path)
+
 
 def download_from_minio(**context) -> str:
     """Download the first pending CSV to a temp file; push XCom path."""
@@ -173,7 +204,7 @@ def archive_file(**context) -> None:
     logger.info("Archived '%s' → processed-data bucket.", object_key)
 
 
-# ── DAG Definition ─────────────────────────────────────────────
+# === DAG Definition =============================================
 with DAG(
     dag_id="sales_pipeline_dag",
     description="E-Commerce sales ETL: MinIO → PostgreSQL",
@@ -184,6 +215,11 @@ with DAG(
     max_active_runs=1,
     tags=["sales", "etl", "minio", "postgres"],
 ) as dag:
+
+    t_generate = PythonOperator(
+        task_id="generate_data",
+        python_callable=run_data_generator,
+    )
 
     t_download = PythonOperator(
         task_id="download_from_minio",
@@ -210,5 +246,5 @@ with DAG(
         python_callable=archive_file,
     )
 
-    # ── Task graph ──────────────────────────────────────────────
-    t_download >> t_validate >> t_transform >> t_load >> t_archive
+    # === Task graph =============================================
+    t_generate >> t_download >> t_validate >> t_transform >> t_load >> t_archive

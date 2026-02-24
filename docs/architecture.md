@@ -4,25 +4,25 @@
 
 ```mermaid
 flowchart TD
-    GEN["🐍 Data Generator\nPython + Faker\n(data-generator/)"]
-    MINIO["🪣 MinIO\nObject Storage\n:9000 API | :9001 Console"]
+    GEN["Data Generator"]
+    MINIO["MinIO\nObject Storage\n:9000 API | :9001 Console"]
     RAW["raw-data bucket\nsales_YYYYMMDD.csv"]
-    AF_WEB["🌀 Airflow Webserver\n:8080"]
-    AF_SCH["🌀 Airflow Scheduler\nLocalExecutor"]
+    AF_WEB["Airflow Webserver\n:8080"]
+    AF_SCH["Airflow Scheduler\nLocalExecutor"]
     PROC["processed-data bucket\n(archived CSVs)"]
 
-    subgraph PG ["🐘 PostgreSQL :5432"]
+    subgraph PG ["PostgreSQL :5432"]
         DB_SALES[("DB: sales\nordres | returned_orders\npurchased_products\npipeline_runs")]
         DB_AF[("DB: airflow\n(Airflow metadata)")]
         DB_MB[("DB: metabase\n(Metabase config)")]
     end
 
-    MB["📊 Metabase\n:3000\nDashboards & BI"]
+    MB["Metabase:3000 Dashboards & BI"]
 
     GEN -->|"Upload CSV"| RAW
     RAW -->|"S3KeySensor"| AF_SCH
     AF_WEB <-->|"REST API / UI"| AF_SCH
-    AF_SCH -->|"download → validate\ntransform → load"| DB_SALES
+    AF_SCH -->|"download → validate → transform → load"| DB_SALES
     AF_SCH -->|"archive"| PROC
     AF_SCH -->|"metadata"| DB_AF
     DB_SALES -->|"SQL queries"| MB
@@ -35,11 +35,11 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-    D["download_from_minio\n⬇️ S3 → temp file"]
-    V["validate_csv\n✅ schema & nulls"]
-    T["transform_data\n🔄 clean + revenue"]
-    L["load_to_postgres\n📥 bulk upsert"]
-    A["archive_file\n📦 raw → processed"]
+    D["download_from_minio\n⬇ S3 → temp file"]
+    V["validate_csv\n schema & nulls"]
+    T["transform_data\n clean + revenue"]
+    L["load_to_postgres\n bulk upsert"]
+    A["archive_file\n raw → processed"]
 
     D --> V --> T --> L --> A
 ```

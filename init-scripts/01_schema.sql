@@ -5,14 +5,14 @@
 -- for the first time (mounted in /docker-entrypoint-initdb.d/).
 -- ================================================================
 
--- ── Create dedicated databases ──────────────────────────────────
+-- == Create dedicated databases ==================================
 SELECT 'CREATE DATABASE airflow'
   WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'airflow')\gexec
 
 SELECT 'CREATE DATABASE metabase'
   WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'metabase')\gexec
 
--- ── Create application users ────────────────────────────────────
+-- == Create application users ====================================
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'airflow_user') THEN
@@ -28,7 +28,7 @@ GRANT ALL PRIVILEGES ON DATABASE airflow  TO airflow_user;
 GRANT ALL PRIVILEGES ON DATABASE metabase TO metabase_user;
 GRANT ALL PRIVILEGES ON DATABASE sales    TO sales_user;
 
--- ── Grant schema-level rights in the airflow database ───────────
+-- == Grant schema-level rights in the airflow database ===========
 -- GRANT ON DATABASE only gives connect rights. In PG 15+, the
 -- public schema is no longer world-writable — airflow_user needs
 -- explicit CREATE on public to run `airflow db init`.
@@ -36,12 +36,12 @@ GRANT ALL PRIVILEGES ON DATABASE sales    TO sales_user;
 GRANT ALL ON SCHEMA public TO airflow_user;
 ALTER SCHEMA public OWNER TO airflow_user;
 
--- ── Grant schema-level rights in the metabase database ──────────
+-- == Grant schema-level rights in the metabase database ==========
 \connect metabase
 GRANT ALL ON SCHEMA public TO metabase_user;
 ALTER SCHEMA public OWNER TO metabase_user;
 
--- ── Switch to sales database ────────────────────────────────────
+-- == Switch to sales database ====================================
 \connect sales
 
 -- ================================================================

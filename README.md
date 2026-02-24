@@ -1,4 +1,4 @@
-# 🚀 E-Commerce Sales Data Platform
+# E-Commerce Sales Data Platform
 
 A production-ready, containerised data platform built with Docker Compose.  
 Synthetic sales data flows end-to-end: **MinIO → Airflow → PostgreSQL → Metabase**.
@@ -8,9 +8,9 @@ Synthetic sales data flows end-to-end: **MinIO → Airflow → PostgreSQL → Me
 ## Architecture
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│  Docker Network: platform_network                                │
-│                                                                  │
+┌─────────────────────────────────────────────────────────────────┐
+│  Docker Network: platform_network                               │
+│                                                                 │
 │  ┌─────────────┐    CSV     ┌──────────┐                        │
 │  │ Data        │ ─────────► │  MinIO   │  (Object Storage)      │
 │  │ Generator   │  upload    │  :9000   │                        │
@@ -24,19 +24,19 @@ Synthetic sales data flows end-to-end: **MinIO → Airflow → PostgreSQL → Me
 │                             └────┬──────────────┘               │
 │                                  │ psycopg2 bulk upsert         │
 │                        ┌─────────▼──────────┐                   │
-│                        │    PostgreSQL       │                   │
-│                        │        :5432        │                   │
-│                        │  DB: sales          │                   │
-│                        │  DB: airflow        │                   │
-│                        │  DB: metabase       │                   │
+│                        │    PostgreSQL      │                   │
+│                        │        :5432       │                   │
+│                        │  DB: sales         │                   │
+│                        │  DB: airflow       │                   │
+│                        │  DB: metabase      │                   │
 │                        └─────────┬──────────┘                   │
 │                                  │ SQL queries                  │
 │                        ┌─────────▼──────────┐                   │
-│                        │     Metabase        │                   │
-│                        │        :3000        │                   │
-│                        │  Dashboards & BI    │                   │
+│                        │     Metabase       │                   │
+│                        │        :3000       │                   │
+│                        │  Dashboards & BI   │                   │
 │                        └────────────────────┘                   │
-└──────────────────────────────────────────────────────────────────┘
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -61,7 +61,7 @@ Synthetic sales data flows end-to-end: **MinIO → Airflow → PostgreSQL → Me
 ### 1 — Clone & configure
 
 ```bash
-git clone https://github.com/<your-org>/DEM12.git
+git clone https://github.com/DE-E-K/DEM12.git
 cd DEM12
 cp .env.example .env
 # Edit .env and replace all change_me_* values with real passwords
@@ -98,7 +98,7 @@ This creates a 500-row synthetic sales CSV and uploads it to MinIO.
 
 1. Open **Airflow UI** → http://localhost:8080
 2. Enable the `sales_pipeline_dag` toggle
-3. Click **▶ Trigger DAG**
+3. Click **Trigger DAG**
 4. Watch all 5 tasks turn green
 
 ### 6 — View dashboards
@@ -146,7 +146,7 @@ generate_data.py
 
 ## Environment Variables
 
-All variables are documented in `.env.example`.  
+All variables are documented in [.env.example](.env.example).  
 **Never commit your `.env` file.**  
 All values are validated at startup via Pydantic `BaseSettings` — missing or invalid variables produce a clear error message listing every issue.
 
@@ -157,7 +157,7 @@ All values are validated at startup via Pydantic `BaseSettings` — missing or i
 | Workflow                    | Trigger       | What it does                                              |
 |-----------------------------|---------------|-----------------------------------------------------------|
 | `ci.yml`                    | Every push/PR | Compose lint → build → unit tests → DAG import check     |
-| `cd.yml`                    | Merge to main | Build & push to GHCR → deploy & health-check stack       |
+| `cd.yml`                    | Merge to main | Build & push to Docker Hub → deploy & health-check stack |
 | `data-flow-validation.yml`  | Merge to main | Seed data → trigger DAG → assert DB rows via pytest      |
 
 ### Required GitHub Secrets (for CD)
@@ -171,6 +171,8 @@ All values are validated at startup via Pydantic `BaseSettings` — missing or i
 | `AIRFLOW_ADMIN_PASSWORD`| Airflow admin UI password              |
 | `MINIO_PASSWORD`        | MinIO root password                    |
 | `METABASE_DB_PASSWORD`  | Metabase PostgreSQL user password      |
+| `DOCKERHUB_USERNAME`    | Docker Hub Username                    |
+| `DOCKERHUB_TOKEN`       | Docker Hub Access Token                |
 
 ---
 

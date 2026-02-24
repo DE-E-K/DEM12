@@ -17,7 +17,7 @@ done
 
 echo "MinIO connection established."
 
-  # ── Create buckets if they don't already exist ─────────────────
+  # == Create buckets if they don't already exist =================
 for BUCKET in "$MINIO_RAW_BUCKET" "$MINIO_PROCESSED_BUCKET"; do
   if mc ls "$MC_ALIAS/$BUCKET" > /dev/null 2>&1; then
     echo "Bucket '$BUCKET' already exists — skipping."
@@ -27,7 +27,7 @@ for BUCKET in "$MINIO_RAW_BUCKET" "$MINIO_PROCESSED_BUCKET"; do
   fi
 done
 
-# ── Apply anonymous read policy on raw-data (optional) ────────
+# == Apply anonymous read policy on raw-data (optional) ========
 mc anonymous set download "$MC_ALIAS/$MINIO_RAW_BUCKET"
 
 echo "MinIO initialisation complete."

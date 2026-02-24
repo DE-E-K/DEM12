@@ -1,6 +1,6 @@
 """
 tests/test_data_flow.py
-────────────────────────
+========================
 End-to-end data-flow validation tests.
 
 Asserts that data successfully moved through:
@@ -29,7 +29,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from include.config import settings
 
 
-# ── Fixtures ───────────────────────────────────────────────────
+# == Fixtures ===================================================
 
 @pytest.fixture(scope="session")
 def s3_client():
@@ -51,7 +51,7 @@ def pg_conn():
     conn.close()
 
 
-# ── Tests ──────────────────────────────────────────────────────
+# == Tests ======================================================
 
 class TestMinIOFileIngestion:
     """Verify files were placed into the MinIO raw-data bucket."""

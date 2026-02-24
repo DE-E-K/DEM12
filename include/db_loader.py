@@ -1,6 +1,6 @@
 """
 include/db_loader.py
-────────────────────
+====================
 Idempotent PostgreSQL bulk loader for the sales platform.
 Inserts orders and upserts the purchased_products aggregation.
 No Airflow imports — fully unit-testable in isolation.

@@ -1,6 +1,6 @@
 """
 include/transformations.py
-──────────────────────────
+==========================
 Pure-Python / Pandas transformation logic for the sales pipeline.
 No Airflow imports — fully unit-testable in isolation.
 """
@@ -44,38 +44,38 @@ def clean_and_transform(df: pd.DataFrame) -> Tuple[pd.DataFrame, int]:
     """
     original_len = len(df)
 
-    # ── Schema check ──────────────────────────────────────────────
+    # == Schema check ==============================================
     validate_schema(df)
 
-    # ── Drop exact duplicate rows ──────────────────────────────────
+    # == Drop exact duplicate rows ==================================
     df = df.drop_duplicates(subset=["order_id"])
 
-    # ── Coerce types ──────────────────────────────────────────────
+    # == Coerce types ==============================================
     df["order_date"] = pd.to_datetime(df["order_date"], errors="coerce")
     df["quantity"] = pd.to_numeric(df["quantity"], errors="coerce")
     df["unit_price"] = pd.to_numeric(df["unit_price"], errors="coerce")
     df["discount"] = pd.to_numeric(df["discount"], errors="coerce").clip(0, 1)
 
-    # ── Drop rows that cannot be salvaged ────────────────────────
+    # == Drop rows that cannot be salvaged ========================
     before_drop = len(df)
     df = df.dropna(subset=["order_id", "order_date", "quantity", "unit_price"])
     rows_dropped = before_drop - len(df)
     if rows_dropped:
         logger.warning("Dropped %d rows with null critical fields.", rows_dropped)
 
-    # ── Normalise text fields ─────────────────────────────────────
+    # == Normalise text fields =====================================
     df["region"] = df["region"].str.strip().str.title()
     df["category"] = df["category"].str.strip().str.title()
     df["product"] = df["product"].str.strip()
     df["status"] = df["status"].str.strip().str.lower()
 
-    # ── Compute revenue (also stored in PG as a generated column,
-    #    but we persist it for validation ease) ────────────────────
+    # == Compute revenue (also stored in PG as a generated column,
+    #    but we persist it for validation ease) ====================
     df["total_revenue"] = (
         df["quantity"] * df["unit_price"] * (1 - df["discount"])
     ).round(2)
 
-    # ── Cast order_date to plain date string for PG DATE type ─────
+    # == Cast order_date to plain date string for PG DATE type =====
     df["order_date"] = df["order_date"].dt.date
 
     rows_skipped = original_len - len(df)

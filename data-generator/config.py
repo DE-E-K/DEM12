@@ -1,6 +1,6 @@
 """
 data-generator/config.py
-─────────────────────────
+=========================
 Minimal Pydantic settings used only by the data-generator container.
 Mirrors the relevant subset of include/config.py so the generator
 image stays lightweight (no psycopg2, no Airflow).
@@ -28,7 +28,8 @@ class GeneratorSettings(BaseSettings):
     minio_raw_bucket:      str = Field("raw-data")
     minio_processed_bucket: str = Field("processed-data")
 
-    generator_num_rows: int = Field(500, ge=1, le=1_000_000)
+    generator_min_rows: int = Field(200, ge=1, le=1_000_000)
+    generator_max_rows: int = Field(1500, ge=1, le=1_000_000)
     generator_seed:     int = Field(42)
 
     @field_validator("minio_endpoint")

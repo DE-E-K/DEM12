@@ -12,23 +12,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # ── Build and push images to GHCR ─────────────────────
-      - name: Log in to GitHub Container Registry
+      # === Build and push images to Docker Hub =====================
+      - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build & push data-generator image
         uses: docker/build-push-action@v5
         with:
           context: ./data-generator
           push: true
-          # Tag matches the `image:` field in docker-compose.yml so `docker compose pull` works
-          tags: ghcr.io/${{ github.repository_owner }}/data-platform-data-generator:latest
+          tags: ${{ vars.DOCKERHUB_USERNAME }}/data-platform-data-generator:latest
 
-      # ── Stand up the full stack on the runner ─────────────
+      # === Stand up the full stack on the runner ==================
       - name: Create .env from GitHub Secrets
         run: |
           cat > .env <<EOF
@@ -57,7 +55,8 @@ jobs:
           MB_DB_USER=metabase_user
           MB_DB_PASS=${{ secrets.METABASE_DB_PASSWORD }}
           MB_DB_HOST=postgres
-          GENERATOR_NUM_ROWS=100
+          GENERATOR_MIN_ROWS=50
+          GENERATOR_MAX_ROWS=150
           GENERATOR_SEED=42
           EOF
 

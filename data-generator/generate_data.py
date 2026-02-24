@@ -1,6 +1,6 @@
 """
 data-generator/generate_data.py
-────────────────────────────────
+================================
 Generates synthetic e-commerce sales CSV data and uploads it to MinIO.
 
 Run inside Docker:
@@ -32,12 +32,12 @@ logging.basicConfig(
 )
 logger = logging.getLogger("data-generator")
 
-# ── Seed for reproducibility ───────────────────────────────────
+# == Seed for reproducibility ===================================
 fake = Faker()
 Faker.seed(settings.generator_seed)
 random.seed(settings.generator_seed)
 
-# ── Lookup tables ──────────────────────────────────────────────
+# == Lookup tables ==============================================
 PRODUCTS = {
     "Electronics":    ["Laptop Pro 15", "Wireless Earbuds", "Smart Watch", "USB-C Hub", "Webcam HD"],
     "Apparel":        ["Running Shoes", "Winter Jacket", "Yoga Pants", "Casual T-Shirt", "Denim Jeans"],
@@ -114,9 +114,10 @@ def upload_to_minio(df: pd.DataFrame) -> str:
 
 
 def main() -> None:
+    num_rows = random.randint(settings.generator_min_rows, settings.generator_max_rows)
     logger.info("Starting data generator (rows=%d, seed=%d).",
-                settings.generator_num_rows, settings.generator_seed)
-    df  = generate_dataframe(settings.generator_num_rows)
+                num_rows, settings.generator_seed)
+    df  = generate_dataframe(num_rows)
     key = upload_to_minio(df)
     logger.info("Done — object key: %s", key)
 

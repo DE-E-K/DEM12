@@ -9,7 +9,7 @@ on:
 
 
 jobs:
-  # ── 1. Validate Compose file ───────────────────────────────
+  # === 1. Validate Compose file =============================================─
   lint-compose:
     name: Lint docker-compose.yml
     runs-on: ubuntu-latest
@@ -22,7 +22,7 @@ jobs:
       - name: Validate Compose config
         run: docker compose config --quiet
 
-  # ── 2. Build all images ────────────────────────────────────
+  # === 2. Build all images ======================================================
   build:
     name: Build Docker images
     runs-on: ubuntu-latest
@@ -46,7 +46,7 @@ jobs:
           path: /tmp/data-generator.tar
           retention-days: 1
 
-  # ── 3. Unit tests ──────────────────────────────────────────
+  # === 3. Unit tests ===============================================================
   unit-tests:
     name: Unit Tests (transformations + db_loader)
     runs-on: ubuntu-latest
@@ -78,10 +78,11 @@ jobs:
           MINIO_PROCESSED_BUCKET: processed-data
           AIRFLOW_ADMIN_PASSWORD: admin_password_ci
           AIRFLOW_ADMIN_EMAIL: admin@example.com
-          GENERATOR_NUM_ROWS: "50"
+          GENERATOR_MIN_ROWS: "50"
+          GENERATOR_MAX_ROWS: "50"
           GENERATOR_SEED: "42"
 
-  # ── 4. DAG import check ────────────────────────────────────
+  # === 4. DAG import check ======================================================
   dag-integrity:
     name: Airflow DAG import check
     runs-on: ubuntu-latest
@@ -92,7 +93,7 @@ jobs:
       - name: Copy env template
         run: cp .env.example .env
 
-      # ── Start postgres and wait for the health check to pass ──
+      # === Start postgres and wait for the health check to pass ===
       - name: Start PostgreSQL
         run: |
           docker compose up -d postgres
@@ -103,8 +104,8 @@ jobs:
             do sleep 3; done'
           echo "postgres is healthy."
 
-      # ── pg_isready passes BEFORE init-scripts finish.
-      #    Poll until the 'airflow' DB exists, which proves 01_schema.sql ran. ──
+      # === pg_isready passes BEFORE init-scripts finish.
+      #    Poll until the 'airflow' DB exists, which proves 01_schema.sql ran. ===
       - name: Wait for PostgreSQL init-scripts to finish
         run: |
           echo "Waiting for init-scripts to create the 'airflow' database..."
@@ -116,12 +117,12 @@ jobs:
             do sleep 3; done'
           echo "Init-scripts complete — 'airflow' database confirmed."
 
-      # ── Run airflow-init in FOREGROUND (--no-deps: postgres is already up).
-      #    set -e inside the script means any failure = non-zero exit = CI fails. ──
+      # === Run airflow-init in FOREGROUND (--no-deps: postgres is already up).
+      #    set -e inside the script means any failure = non-zero exit = CI fails. ===
       - name: Initialise Airflow database
         run: docker compose run --rm --no-deps airflow-init
 
-      # ── Run the DAG list check without starting the full webserver ──
+      # === Run the DAG list check without starting the full webserver ===
       - name: Test DAG import
         run: |
           docker compose run --rm --no-deps airflow-scheduler \
