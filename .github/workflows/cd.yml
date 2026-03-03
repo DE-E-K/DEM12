@@ -63,9 +63,14 @@ jobs:
 
       - name: Start all services
         run: |
+          # Bring up init containers first (they run once and exit)
+          docker compose up -d minio-init airflow-init
+          # Wait for init containers to finish successfully
+          docker compose wait minio-init airflow-init
+          # Now start and wait for the long-running services only
           docker compose up -d --wait \
-            postgres minio minio-init \
-            airflow-init airflow-webserver airflow-scheduler \
+            postgres minio \
+            airflow-webserver airflow-scheduler \
             metabase
         timeout-minutes: 5
 
