@@ -159,7 +159,7 @@ class TestCustomers:
 # == Orders Tests ===============================================
 
 
-class TestPostgreSQLData:
+class TestOrders:
     """Verify that orders were successfully inserted into PostgreSQL."""
 
     def test_orders_table_has_rows(self, pg_conn):

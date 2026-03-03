@@ -61,17 +61,34 @@ flowchart LR
 
 ## Data Model
 
-![data_schema](/docs/screenshots/MetaIO.png)
+![Database Schema](screenshots/dbschema.png)
 
 ---
 
 ## Screenshots
 
-Place dashboard screenshots in `docs/screenshots/` after completing Metabase setup.  
-Suggested filenames:
-- `01_monthly_revenue.png`
-- `02_top_products.png`
-- `03_revenue_by_region.png`
-- `04_orders_over_time.png`
-- `05_return_rate.png`
-- `06_full_dashboard.png`
+### DAG Run Status
+
+![DAG Run Status](screenshots/dagrunstatus.png)
+
+### MinIO — Raw Data Bucket
+
+![MinIO Raw Data](screenshots/miniorawdata.png)
+
+### MinIO — Processed Files Bucket
+
+![MinIO Processed Files](screenshots/minioproceedfiles.png)
+
+### Metabase Dashboard
+
+![Metabase Dashboard](screenshots/mbdashbord.png)
+
+### Monthly Revenue Chart
+
+![Monthly Revenue Chart](screenshots/monthlyrevenue%20char.png)
+
+### Saved Questions Summary
+
+![Summary Questions](screenshots/summaryq.png)
+
+> For full dashboard documentation, see [dashboard.md](dashboard.md).
