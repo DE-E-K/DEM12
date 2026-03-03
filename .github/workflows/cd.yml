@@ -17,7 +17,7 @@ jobs:
         uses: docker/login-action@v3
         with:
           username: ${{ vars.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
       - name: Build & push data-generator image
         uses: docker/build-push-action@v5
@@ -38,10 +38,10 @@ jobs:
           AIRFLOW_DB_PASSWORD=${{ secrets.AIRFLOW_DB_PASSWORD }}
           AIRFLOW__CORE__EXECUTOR=LocalExecutor
           AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow_user:${{ secrets.AIRFLOW_DB_PASSWORD }}@postgres:5432/airflow
-          AIRFLOW__CORE__FERNET_KEY=${{ secrets.AIRFLOW_FERNET_KEY }}
+          AIRFLOW__CORE__FERNET_KEY=${{ secrets.AIRFLOW__CORE__FERNET_KEY }}
           AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=false
           AIRFLOW__CORE__LOAD_EXAMPLES=false
-          AIRFLOW__WEBSERVER__SECRET_KEY=${{ secrets.AIRFLOW_SECRET_KEY }}
+          AIRFLOW__WEBSERVER__SECRET_KEY=${{ secrets.AIRFLOW__WEBSERVER__SECRET_KEY }}
           AIRFLOW_ADMIN_USERNAME=admin
           AIRFLOW_ADMIN_PASSWORD=${{ secrets.AIRFLOW_ADMIN_PASSWORD }}
           AIRFLOW_ADMIN_EMAIL=admin@example.com
@@ -54,10 +54,10 @@ jobs:
           MB_DB_DBNAME=metabase
           MB_DB_PORT=5432
           MB_DB_USER=metabase_user
-          MB_DB_PASS=${{ secrets.METABASE_DB_PASSWORD }}
+          MB_DB_PASS=${{ secrets.MB_DB_PASS }}
           MB_DB_HOST=postgres
-          GENERATOR_MIN_ROWS=50
-          GENERATOR_MAX_ROWS=150
+          GENERATOR_NUM_CUSTOMERS=50
+          GENERATOR_NUM_TRANSACTIONS=200
           GENERATOR_SEED=42
           EOF
 

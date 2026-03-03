@@ -99,7 +99,7 @@ services:
       - -c
       - |
         set -e
-        airflow db init
+        airflow db migrate
         airflow users create \
           --username ${AIRFLOW_ADMIN_USERNAME} \
           --firstname Admin \
@@ -180,6 +180,8 @@ services:
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
       MINIO_ENDPOINT: ${MINIO_ENDPOINT}
       MINIO_RAW_BUCKET: ${MINIO_RAW_BUCKET}
+      GENERATOR_NUM_CUSTOMERS: ${GENERATOR_NUM_CUSTOMERS}
+      GENERATOR_NUM_TRANSACTIONS: ${GENERATOR_NUM_TRANSACTIONS}
       GENERATOR_MIN_ROWS: ${GENERATOR_MIN_ROWS}
       GENERATOR_MAX_ROWS: ${GENERATOR_MAX_ROWS}
       GENERATOR_SEED: ${GENERATOR_SEED}
@@ -195,7 +197,6 @@ volumes:
   postgres_data:
   minio_data:
   airflow_logs:
-  metabase_data:
 
 
 networks:

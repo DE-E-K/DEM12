@@ -4,23 +4,23 @@
 
 ```mermaid
 flowchart TD
-    GEN["Data Generator"]
-    MINIO["MinIO\nObject Storage\n:9000 API | :9001 Console"]
-    RAW["raw-data bucket\nsales_YYYYMMDD.csv"]
-    AF_WEB["Airflow Webserver\n:8080"]
-    AF_SCH["Airflow Scheduler\nLocalExecutor"]
-    PROC["processed-data bucket\n(archived CSVs)"]
+    GEN["Data Generator (3 CSVs: customers, products, sales)"]
+    MINIO["MinIO Object Storage :9000 API | :9001 Console"]
+    RAW["raw-data bucket customers_*.csv products_*.csv sales_*.csv"]
+    AF_WEB["Airflow Webserver :8080"]
+    AF_SCH["Airflow Scheduler LocalExecutor"]
+    PROC["processed-data bucket (archived CSVs)"]
 
     subgraph PG ["PostgreSQL :5432"]
-        DB_SALES[("DB: sales\nordres | returned_orders\npurchased_products\npipeline_runs")]
-        DB_AF[("DB: airflow\n(Airflow metadata)")]
-        DB_MB[("DB: metabase\n(Metabase config)")]
+        DB_SALES[("DB: sales (7 tbls) product_categories | products | customers | orders returned_orders | purchased_products pipeline_runs")]
+        DB_AF[("DB: airflow (Airflow metadata)")]
+        DB_MB[("DB: metabase (Metabase config)")]
     end
 
-    MB["Metabase:3000 Dashboards & BI"]
+    MB["Metabase :3000 Dashboards & BI"]
 
-    GEN -->|"Upload CSV"| RAW
-    RAW -->|"S3KeySensor"| AF_SCH
+    GEN -->|"Upload 3 CSVs"| RAW
+    RAW -->|"Scheduled poll"| AF_SCH
     AF_WEB <-->|"REST API / UI"| AF_SCH
     AF_SCH -->|"download → validate → transform → load"| DB_SALES
     AF_SCH -->|"archive"| PROC
@@ -35,13 +35,14 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-    D["download_from_minio\n⬇ S3 → temp file"]
-    V["validate_csv\n schema & nulls"]
-    T["transform_data\n clean + revenue"]
-    L["load_to_postgres\n bulk upsert"]
-    A["archive_file\n raw → processed"]
+    R["run_data_generator (optional trigger)"]
+    D["download_from_minio ⬇ S3 → temp files (customers + products + sales)"]
+    V["validate_csv schema & nulls (per entity type)"]
+    T["transform_data clean + enrich + extract returns & categories"]
+    L["load_to_postgres bulk upsert categories → products → customers → orders → returns → aggregations"]
+    A["archive_file raw → processed"]
 
-    D --> V --> T --> L --> A
+    R --> D --> V --> T --> L --> A
 ```
 
 ---
@@ -60,55 +61,7 @@ flowchart LR
 
 ## Data Model
 
-```mermaid
-erDiagram
-    ORDERS {
-        varchar order_id PK
-        varchar customer_id
-        varchar product
-        varchar category
-        varchar region
-        int     quantity
-        numeric unit_price
-        numeric discount
-        numeric total_revenue
-        date    order_date
-        varchar status
-        timestamptz ingested_at
-    }
-
-    RETURNED_ORDERS {
-        serial  return_id PK
-        varchar order_id  FK
-        varchar return_reason
-        date    return_date
-        numeric refund_amount
-        timestamptz processed_at
-    }
-
-    PURCHASED_PRODUCTS {
-        varchar product PK
-        varchar category
-        bigint  total_units_sold
-        numeric total_revenue
-        numeric avg_discount
-        date    last_purchased_date
-        timestamptz updated_at
-    }
-
-    PIPELINE_RUNS {
-        serial  run_id PK
-        varchar dag_run_id
-        varchar file_processed
-        int     rows_inserted
-        int     rows_skipped
-        varchar status
-        timestamptz started_at
-        timestamptz finished_at
-    }
-
-    ORDERS ||--o{ RETURNED_ORDERS : "has returns"
-```
+![data_schema](/docs/screenshots/MetaIO.png)
 
 ---
 

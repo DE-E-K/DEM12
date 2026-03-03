@@ -27,7 +27,4 @@ for BUCKET in "$MINIO_RAW_BUCKET" "$MINIO_PROCESSED_BUCKET"; do
   fi
 done
 
-# == Apply anonymous read policy on raw-data (optional) ========
-mc anonymous set download "$MC_ALIAS/$MINIO_RAW_BUCKET"
-
 echo "MinIO initialisation complete."

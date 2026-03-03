@@ -119,8 +119,8 @@ jobs:
           MINIO_PROCESSED_BUCKET: processed-data
           AIRFLOW_ADMIN_PASSWORD: admin_password_ci
           AIRFLOW_ADMIN_EMAIL: admin@example.com
-          GENERATOR_MIN_ROWS: "50"
-          GENERATOR_MAX_ROWS: "50"
+          GENERATOR_NUM_CUSTOMERS: "50"
+          GENERATOR_NUM_TRANSACTIONS: "200"
           GENERATOR_SEED: "42"
 
   # === 4. DAG import check ======================================================
