@@ -63,16 +63,26 @@ jobs:
 
       - name: Start all services
         run: |
-          # Bring up init containers first (they run once and exit)
-          docker compose up -d minio-init airflow-init
-          # Wait for init containers to finish successfully
-          docker compose wait minio-init airflow-init
-          # Now start and wait for the long-running services only
+          # 1) Start infra + one-shot init containers (dependencies auto-start)
+          docker compose up -d postgres minio minio-init airflow-init
+
+          # 2) Wait for init containers to complete and verify exit codes
+          for container in platform_minio_init platform_airflow_init; do
+            EXIT_CODE=$(docker wait "$container")
+            echo "$container exited with code $EXIT_CODE"
+            if [ "$EXIT_CODE" != "0" ]; then
+              echo "FAIL: $container did not complete successfully — dumping logs:"
+              docker logs "$container"
+              exit 1
+            fi
+          done
+
+          # 3) Start and wait for long-running services to become healthy
           docker compose up -d --wait \
             postgres minio \
             airflow-webserver airflow-scheduler \
             metabase
-        timeout-minutes: 5
+        timeout-minutes: 10
 
       - name: Health check — all containers healthy
         run: |
