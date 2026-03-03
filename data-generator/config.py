@@ -28,9 +28,14 @@ class GeneratorSettings(BaseSettings):
     minio_raw_bucket:      str = Field("raw-data")
     minio_processed_bucket: str = Field("processed-data")
 
+    # Generator sizing
+    generator_num_customers:    int = Field(1000, ge=10, le=1_000_000)
+    generator_num_transactions: int = Field(10000, ge=50, le=10_000_000)
+    generator_seed:             int = Field(42)
+
+    # Legacy fields (still accepted for backward compatibility)
     generator_min_rows: int = Field(200, ge=1, le=1_000_000)
     generator_max_rows: int = Field(1500, ge=1, le=1_000_000)
-    generator_seed:     int = Field(42)
 
     @field_validator("minio_endpoint")
     @classmethod

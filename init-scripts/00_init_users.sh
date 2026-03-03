@@ -6,12 +6,14 @@ AIRFLOW_PASS="${AIRFLOW_DB_PASSWORD:-change_me_airflow}"
 METABASE_PASS="${MB_DB_PASS:-change_me_metabase}"
 
 psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
+  -- Create additional databases
   SELECT 'CREATE DATABASE airflow'
     WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'airflow')\gexec
 
   SELECT 'CREATE DATABASE metabase'
     WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'metabase')\gexec
 
+  -- Create service accounts
   DO \$\$
   BEGIN
     IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'airflow_user') THEN
@@ -23,7 +25,20 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
   END
   \$\$;
 
+  -- Grant database-level privileges
   GRANT ALL PRIVILEGES ON DATABASE airflow  TO airflow_user;
   GRANT ALL PRIVILEGES ON DATABASE metabase TO metabase_user;
-  GRANT ALL PRIVILEGES ON DATABASE sales    TO sales_user;
+  GRANT ALL PRIVILEGES ON DATABASE sales    TO ${POSTGRES_USER};
+  GRANT CONNECT ON DATABASE sales           TO metabase_user;
 EOSQL
+
+# PG 15+ revoked default CREATE on public schema — grant it explicitly
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname airflow <<-EOSQL2
+  GRANT CREATE ON SCHEMA public TO airflow_user;
+  GRANT USAGE  ON SCHEMA public TO airflow_user;
+EOSQL2
+
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname metabase <<-EOSQL3
+  GRANT CREATE ON SCHEMA public TO metabase_user;
+  GRANT USAGE  ON SCHEMA public TO metabase_user;
+EOSQL3

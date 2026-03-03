@@ -51,6 +51,8 @@ class Settings(BaseSettings):
     minio_processed_bucket: str = Field("processed-data")
 
     # === Data Generator ======================================================
+    generator_num_customers:    int = Field(1000, ge=10, le=1_000_000)
+    generator_num_transactions: int = Field(10000, ge=50, le=10_000_000)
     generator_min_rows: int = Field(200, ge=1, le=1_000_000)
     generator_max_rows: int = Field(1500, ge=1, le=1_000_000)
     generator_seed: int = Field(42)

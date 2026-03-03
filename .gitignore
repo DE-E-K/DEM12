@@ -1,8 +1,8 @@
-# ─── Environment & Secrets ───────────────────────────────────
+# === Environment & Secrets =================================
 .env
 *.env.local
 
-# ─── Docker volumes & runtime data ───────────────────────────
+# === Docker volumes & runtime data =========================
 volumes/
 postgres-data/
 minio-data/
@@ -10,7 +10,7 @@ metabase-data/
 airflow-logs/
 logs/
 
-# ─── Python ──────────────────────────────────────────────────
+# === Python ================================================
 __pycache__/
 *.py[cod]
 *.pyo
@@ -24,25 +24,25 @@ dist/
 build/
 .eggs/
 
-# ─── Jupyter ─────────────────────────────────────────────────
+# === Jupyter ================================================
 .ipynb_checkpoints/
 *.ipynb
 
-# ─── Data files ──────────────────────────────────────────────
+# === Data files ==============================================
 data/raw/
 data/processed/
 *.csv
 *.parquet
 *.json.gz
 
-# ─── Airflow ─────────────────────────────────────────────────
+# === Airflow ================================================
 airflow/airflow.db
 airflow/webserver_config.py
 airflow/logs/
 airflow/plugins/
 __pycache__/
 
-# ─── OS & IDE ────────────────────────────────────────────────
+# === OS & IDE ================================================
 .DS_Store
 Thumbs.db
 .idea/
@@ -50,7 +50,6 @@ Thumbs.db
 *.swp
 *.swo
 
-# ─── Docs generated ──────────────────────────────────────────
-docs/screenshots/*.png
+# === Docs generated ==========================================
 docs/screenshots/*.jpg
 !docs/screenshots/.gitkeep
