@@ -86,7 +86,7 @@ jobs:
 
       - name: Health check — all containers healthy
         run: |
-          for service in platform_postgres platform_minio platform_airflow_webserver platform_metabase; do
+          for service in platform_postgres platform_minio platform_airflow_webserver platform_airflow_scheduler platform_metabase; do
             STATUS=$(docker inspect --format='{{.State.Health.Status}}' $service 2>/dev/null || echo "unknown")
             echo "$service: $STATUS"
             [ "$STATUS" = "healthy" ] || { echo "FAIL: $service not healthy"; exit 1; }
@@ -95,3 +95,4 @@ jobs:
       - name: Tear down
         if: always()
         run: docker compose down -v
+
