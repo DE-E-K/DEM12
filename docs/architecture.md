@@ -85,7 +85,7 @@ flowchart LR
 
 ### Monthly Revenue Chart
 
-![Monthly Revenue Chart](screenshots/monthlyrevenue%20char.png)
+![Monthly Revenue Chart](screenshots/cicdrunsuccessful.png)
 
 ### Saved Questions Summary
 

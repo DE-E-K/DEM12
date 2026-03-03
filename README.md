@@ -458,7 +458,7 @@ All cards support **7 cross-filter dropdown parameters** (Start Date, End Date, 
 
 ![Sales Overview Dashboard](docs/screenshots/mbdashbord.png)
 
-![Monthly Revenue Chart](docs/screenshots/monthlyrevenue%20char.png)
+![CI CD Run Success](docs/screenshots/cicdrunsuccessful.png)
 
 ---
 
