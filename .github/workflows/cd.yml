@@ -66,9 +66,25 @@ jobs:
           # 1) Start infra + one-shot init containers (dependencies auto-start)
           docker compose up -d postgres minio minio-init airflow-init
 
-          # 2) Wait for init containers to complete and verify exit codes
+          # 2) Poll until each init container finishes, then check its exit code.
+          #    minio-init won't start until minio is healthy (per depends_on),
+          #    so we poll rather than using docker wait (which races on fast exits).
           for container in platform_minio_init platform_airflow_init; do
-            EXIT_CODE=$(docker wait "$container")
+            echo "Waiting for $container to finish..."
+            for i in $(seq 1 60); do
+              STATUS=$(docker inspect --format='{{.State.Status}}' "$container" 2>/dev/null || echo "missing")
+              if [ "$STATUS" = "exited" ]; then
+                break
+              fi
+              sleep 5
+            done
+            STATUS=$(docker inspect --format='{{.State.Status}}' "$container" 2>/dev/null || echo "missing")
+            if [ "$STATUS" != "exited" ]; then
+              echo "FAIL: $container did not finish within timeout — dumping logs:"
+              docker logs "$container"
+              exit 1
+            fi
+            EXIT_CODE=$(docker inspect --format='{{.State.ExitCode}}' "$container")
             echo "$container exited with code $EXIT_CODE"
             if [ "$EXIT_CODE" != "0" ]; then
               echo "FAIL: $container did not complete successfully — dumping logs:"
